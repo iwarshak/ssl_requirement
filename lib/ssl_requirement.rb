@@ -30,8 +30,12 @@ module SslRequirement
       write_inheritable_array(:ssl_required_actions, actions)
     end
     
-    def ssl_exceptions(*actions)
+    def ssl_required_exceptions(*actions)
       write_inheritable_array(:ssl_required_except_actions, actions)
+    end
+    
+    def ssl_allowed_exceptions(*actions)
+      write_inheritable_array(:ssl_allowed_except_actions, actions)
     end
 
     def ssl_allowed(*actions)
@@ -53,14 +57,21 @@ module SslRequirement
     end
     
     def ssl_allowed?
-      (self.class.read_inheritable_attribute(:ssl_allowed_actions) || []).include?(action_name.to_sym)
+      allowed  = (self.class.read_inheritable_attribute(:ssl_allowed_actions) || [])
+      except   = self.class.read_inheritable_attribute(:ssl_allowed_except_actions)
+      
+      unless except
+        allowed.include?(action_name.to_sym)
+      else
+        !except.include?(action_name.to_sym)
+      end
     end
 
   private
     def ensure_proper_protocol
       return true if ssl_allowed?
 
-      if ssl_required? && !request.ssl?
+      if ssl_required? && !request.ssl? #&& Rails.env == "production"
         redirect_to "https://" + request.host + request.request_uri
         flash.keep
         return false

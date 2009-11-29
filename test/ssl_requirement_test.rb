@@ -57,7 +57,7 @@ class SslExceptionController < ActionController::Base
   include SslRequirement
   
   ssl_required  :a
-  ssl_exceptions :b
+  ssl_required_exceptions :b
   ssl_allowed :d
     
   def a
@@ -84,7 +84,7 @@ end
 class SslAllActionsController < ActionController::Base
   include SslRequirement
   
-  ssl_exceptions
+  ssl_required_exceptions
     
   def a
     render :nothing => true
@@ -92,11 +92,61 @@ class SslAllActionsController < ActionController::Base
   
 end
 
+class SslActionsAllowedController < ActionController::Base
+  include SslRequirement
+  
+  ssl_allowed_exceptions :b
+    
+  def a
+    render :nothing => true
+  end
+  
+  def b
+    render :nothing => true
+  end
+end
+
+class SslAllActionsAllowedController < ActionController::Base
+  include SslRequirement
+  
+  ssl_allowed_exceptions
+    
+  def a
+    render :nothing => true
+  end
+  
+  def b
+    render :nothing => true
+  end
+end
+
 class SslRequirementTest < Test::Unit::TestCase
   def setup
     @controller = SslRequirementController.new
     @request    = ActionController::TestRequest.new
     @response   = ActionController::TestResponse.new
+  end
+  
+  def test_ssl_actions_allowed
+    @controller = SslActionsAllowedController.new
+    @request.env["HTTPS"] = "on"
+    get :a
+    assert_response :success
+    
+    get :b
+    assert_response :redirect
+    assert_match %r{^http://}, @response.headers['Location']    
+  end
+  
+  def test_all_actions_allow_ssl
+    @controller = SslAllActionsAllowedController.new
+    @request.env["HTTPS"] = "on"
+    
+    get :a
+    assert_response :success
+    
+    get :b
+    assert_response :success    
   end
   
   def test_redirect_to_https_preserves_flash
@@ -153,7 +203,7 @@ class SslRequirementTest < Test::Unit::TestCase
     assert_response :success
   end
   
-  def test_ssl_exceptions_without_ssl
+  def test_ssl_required_exceptions_without_ssl
     @controller = SslExceptionController.new
     get :a
     assert_response :redirect
@@ -162,12 +212,12 @@ class SslRequirementTest < Test::Unit::TestCase
     get :b
     assert_response :success
     
-    get :c # c is not explicity in ssl_required, but it is not listed in ssl_exceptions
+    get :c # c is not explicity in ssl_required, but it is not listed in ssl_required_exceptions
     assert_response :redirect
     assert_match %r{^https://}, @response.headers['Location']
   end
     
-  def test_ssl_exceptions_with_ssl
+  def test_ssl_required_exceptions_with_ssl
     @controller = SslExceptionController.new
     @request.env['HTTPS'] = "on"
     get :a
