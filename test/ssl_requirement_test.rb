@@ -120,7 +120,38 @@ class SslAllActionsAllowedController < ActionController::Base
   end
 end
 
-class SslRequirementTest < Test::Unit::TestCase
+class SslEverythingAllowedSomeRequired < ActionController::Base
+  include SslRequirement
+  ssl_required :a
+  ssl_allowed_exceptions #allow all
+    
+  def a
+    render :nothing => true
+  end
+  
+  def b
+    render :nothing => true
+  end
+end
+
+class SslEverythingAllowedSomeRequiredTest < ActionController::TestCase
+  def setup
+    @controller = SslEverythingAllowedSomeRequired.new
+    @request    = ActionController::TestRequest.new
+    @response   = ActionController::TestResponse.new
+  end
+  
+  def test_ssl_required
+    get :a
+    assert_response :redirect
+    assert_match %r{^https://}, @response.headers['Location']
+  end
+  
+  
+end
+
+
+class SslRequirementTest < ActionController::TestCase
   def setup
     @controller = SslRequirementController.new
     @request    = ActionController::TestRequest.new
